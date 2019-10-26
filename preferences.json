@@ -1,0 +1,44 @@
+{
+  "short_names": {
+    "IntelliJ IDEA": "IntelliJ",
+    "Google Chrome": "Chrome",
+    "Cisco AnyConnect Secure Mobility Client": "Cisco",
+    "Karabiner-Elements": "Karabiner",
+    "Amazon Chime": "Chime",
+    "Microsoft Outlook": "Outlook"
+  },
+  "arrangements": {
+    "triple": {
+      "monitors": {
+        "1": 1,
+        "2": 1,
+        "3": 2
+      },
+      "processes": {
+        "IntelliJ IDEA": 2,
+        "Google Chrome": 1,
+        "Amazon Chime": 1,
+        "Firefox": 3,
+        "Spotify": 1,
+        "Microsoft Outlook": 1,
+        "PyCharm": 2,
+        "iTerm2": 1
+      }
+    },
+    "single": {
+      "monitors": {
+        "1": 1
+      },
+      "processes": {
+        "IntelliJ IDEA": 1,
+        "Google Chrome": 1,
+        "Amazon Chime": 1,
+        "Firefox": 1,
+        "Spotify": 1,
+        "Microsoft Outlook": 1,
+        "PyCharm": 1,
+        "iTerm2": 1
+      }
+    }
+  }
+}
