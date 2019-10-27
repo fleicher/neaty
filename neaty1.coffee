@@ -56,7 +56,7 @@ style: """
     }
 
     td.lastname {
-        border-right: 1px solid gray;
+        border-right: 1px solid black;
     }
 
     img.icon {
@@ -119,7 +119,7 @@ style: """
     }
 
 
-"""
+""" # TODO: the lines only work if there are not too many desktops
 
 command: "/usr/local/bin/python3 ./windows/neaty.py --monitor 1"
 
@@ -170,21 +170,30 @@ update: (output, domEl) ->
       toprow.append(cell_number)
       toprow.append(cell_icon)
       botrow.append(cell_name)
+      div_desktop = $("<div id='desktop-no#{i}'>")
+      div_line_left = $("<div id='line-left#{i}'>")
+      img_icon = $("<img class='icon' src='#{w["icon"]}' id='img#{i}'>")
+      div_line_right = $("<div id='line-right#{i}'>")
+      cell_icon.append(div_desktop)
+      cell_icon.append(div_line_left)
+      cell_icon.append(img_icon)
+      cell_icon.append(div_line_right)
+
     else
       cell_number = $(domEl).find("#no#{i}")
       cell_icon = $(domEl).find("#icon#{i}")
       cell_name = $(domEl).find("#name#{i}")
-
+      div_desktop = $(domEl).find("#desktop-no#{i}")
+      div_line_left = $(domEl).find("#line-left#{i}")
+      img_icon = $(domEl).find("#img#{i}")
+      div_line_right = $(domEl).find("#line-right#{i}")
 
     if cell_name.attr("title") != w["title"]
       console.log("update this monitor")
       cell_name.attr("title", w["title"])
       cell_number.text(w["no"] % 10)
       cell_name.text(w["short"])
-      cell_icon.append($("<div id='desktop-no#{i}'>"))
-      cell_icon.append($("<div id='line-left#{i}'>"))
-      cell_icon.append($("<img class='icon' src='#{w["icon"]}' id='img#{i}'>"))
-      cell_icon.append($("<div id='line-right#{i}'>"))
+      img_icon.attr("src", "#{w['icon']}")
 
     window_no = "window#{w['no']}"
     if !cell_number.attr("class").includes(window_no)
@@ -195,14 +204,17 @@ update: (output, domEl) ->
       cell_number.text(w['no'] % 10)
       for o in [$(domEl).find("#img#{i}"), cell_number, cell_name, cell_icon]
         o.on("click", calls[w['no']])
-      $(domEl).find("#line-left#{i}").attr("class",
+      div_line_left.attr("class",
         "line line-left #{if w['first'] then 'line-left-angle' else 'line-left-straight'}")
-      $(domEl).find("#line-right#{i}").attr("class",
+      div_line_right.attr("class",
         "line line-right #{if w['last'] then 'line-right-angle' else 'line-right-straight'}")
-      $(domEl).find("#desktop-no#{i}").text(w['desktop']).attr("class",
+      div_desktop.text(w['desktop']).attr("class",
         "desktop #{if w['first'] then 'desktop-hide' else 'desktop-show'}")
 
   for i in [info.length ... toprow.children('td').length]
     $(domEl).find("#no#{i}").remove()
     $(domEl).find("#icon#{i}").remove()
     $(domEl).find("#name#{i}").remove()
+    $(domEl).find("#line-left#{i}").remove()
+    $(domEl).find("#line-right#{i}").remove()
+    $(domEl).find("#desktop-no#{i}").remove()
