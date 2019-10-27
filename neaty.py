@@ -186,7 +186,7 @@ def ordered_windows_for_monitor(monitor_no: int, limit=10) -> str:
                 "first": n == 0,  # there is a different css style for the first window of a desktop
                 "last": n == len(windows) - 1,
             })
-    return json.dumps(windows_json)
+    return json.dumps(windows_json, indent=4, sort_keys=True)
 
 
 def organize(mode="triple"):

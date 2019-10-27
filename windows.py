@@ -175,15 +175,18 @@ def get_sorted_windows_for_desktop(desktop: int, *, only_resizable=False) -> Lis
     if output == "":
         return []
 
-    windows = []
+    output_by_lines = []
     for line in output.split("\n"):
-        if line[0] == " ":
-            # windows[-1].title = line.strip()
-            continue
+        try:
+            int(line[0])  # to throw Value Error if there is no PID in output
+            output_by_lines.append([item.strip() for item in line.split(",")])
+        except ValueError:  # this was a line with a line break (i.e. first character not PID)
+            output_by_lines[-1][-1] += "\n" + line
 
-        items = [item.strip() for item in line.split(",")]
-        if items[-1] == "(invalid)":  # small pseudo windows are noted this way.
-            continue
+    windows = []
+    for items in output_by_lines:
+        if items[2][-9:] == "(invalid)":
+            continue  # pseudo windows (e.g. Chrome's find dialog)
 
         window = Window(items)
         if only_resizable:
