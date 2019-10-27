@@ -1,4 +1,3 @@
-#!/usr/local/bin/python3
 from __future__ import print_function
 
 import argparse
@@ -6,16 +5,11 @@ import math
 import json
 import subprocess
 from collections import Counter
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
 
 from windows import Window, focus_desktop, get_sorted_windows_for_desktop, get_focused_window, get_number_of_monitors, \
     get_focused_desktop, get_desktops_for_monitor, get_position_for_processes, destroy_desktop, create_new_desktop, \
-    focus_window_id, move_window, get_file_for_processes, get_app_path
-
-# print(os.getcwd())
-# cwd = "/Users/leichef/Library/Application Support/Übersicht/widgets/windows"
-with open("./windows/preferences.json") as f:
-    preferences = json.load(f)
+    focus_window_id, move_window, get_app_path
 
 
 # ################################### #
@@ -89,15 +83,14 @@ for monitor_ in range(number_of_monitors, 0, -1):
 #         Helper functions       #
 # ############################## #
 
-def get_short_process_name(process):
-    try:
-        return preferences["short_names"][process]
-    except KeyError:
-        return process
-
 
 def flat_window_list() -> List[Window]:
     return [window for monitor in monitors.values() for desktop in monitor.values() for window in desktop]
+
+
+def load_preferences() -> Dict[str, Dict[str, Any]]:
+    with open("./windows/preferences.json") as f:
+        return json.load(f)
 
 
 def associate_positions_to_windows():
@@ -107,6 +100,7 @@ def associate_positions_to_windows():
             if w[0] == window.title:
                 window.size = w[1]
 # associate_positions_to_windows()
+# TODO: left window should be shown before right window
 
 
 def get_icon(process_name: str) -> str:
@@ -115,7 +109,6 @@ def get_icon(process_name: str) -> str:
     import os.path
 
     path = f'./windows/icons/{md5(process_name.encode("utf-8")).hexdigest()}.png'
-    # path = "/Users/leichef/Library/Application Support/Übersicht/widgets/" + path
 
     if os.path.exists(path):
         return path
@@ -130,12 +123,10 @@ def get_icon(process_name: str) -> str:
             'sips', '-s', 'format', 'png', f"{process_path}/Resources/{icon_name}",
             '--out', path, '--resampleHeight', '50'
         ]
-        # import sys
-        # subprocess.Popen(" ".join(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT); print('finished')
         result = subprocess.check_output(cmd)
         print(f"created icon for {process_name}:", result)
         return path
-    except IOError as e:
+    except IOError:
         return 'icons/unknown.png'
 
 
@@ -162,17 +153,18 @@ def focus_window_number(window_no: int):
 
 
 def ordered_windows_for_monitor(monitor_no: int, limit=10) -> str:
-    """ entry point for argument --json"""
+    """ entry point for argument --monitor"""
     icon_paths = {process: get_icon(process) for process in processes_set}
     processes_counter = count_unique_processes(monitor_no)
-
+    preferences = load_preferences()
     windows_json: List[Dict[str, Union[str, int]]] = []
 
     for desktop_no, windows in monitors[monitor_no].items():
         for n, window in enumerate(windows):
             if window.no > limit:
                 continue
-            short_process_name = get_short_process_name(window.process)
+            short_process_name = preferences["short_names"][window.process] if window.process in preferences[
+                "short_names"] else window.process
             short_title = window.title if len(window.title) <= 20 else window.title[:20] + "…"
             windows_json.append({
                 "process": short_process_name,
@@ -192,7 +184,7 @@ def ordered_windows_for_monitor(monitor_no: int, limit=10) -> str:
 
 def organize(mode="triple"):
     """ entry point for argument --organize"""
-    arrangement = preferences["arrangements"][mode]
+    arrangement = load_preferences()["arrangements"][mode]
     left_over_windows = 0
     needed_desktops_counter = Counter()
     existing_desktop_counter = Counter()

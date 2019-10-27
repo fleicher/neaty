@@ -1,0 +1,7 @@
+*.js
+.idea/*
+node_modules/*
+package-lock.json
+icons/*
+!icons/gradient.png
+!icons/unknown.png
