@@ -66,6 +66,7 @@ def focus_window_id(window_id: int):
         '/usr/local/bin/chunkc', 'tiling::window', '--focus', str(window_id)
     ])
 
+
 # ################################ #
 #   Desktop Manipulation Functions #
 # ################################ #

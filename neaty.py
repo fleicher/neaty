@@ -1,8 +1,8 @@
 from __future__ import print_function
 
 import argparse
-import math
 import json
+import math
 import subprocess
 from collections import Counter
 from typing import List, Dict, Union, Any
@@ -25,6 +25,7 @@ def safe_send_window(desktop: int, window: Window = None):
 
     def sent_correctly():
         return window.id in [w.id for w in window_ids_on_target_desktop]
+
     while retries < 5 and not sent_correctly():
         safe_focus_window_id(window)
         move_window(desktop)
@@ -99,6 +100,8 @@ def associate_positions_to_windows():
         for w in position_info[window.process]:
             if w[0] == window.title:
                 window.size = w[1]
+
+
 # associate_positions_to_windows()
 # TODO: left window should be shown before right window
 
@@ -131,13 +134,16 @@ def get_icon(process_name: str) -> str:
 
 
 def count_unique_processes(monitor: int) -> Counter:
-    processes = Counter()
-    for desktop_no, windows in monitors[monitor].items():
-        windows_counter = 0
-        for window in windows:
-            processes[window.process] += 1
-            windows_counter += 1
-    return processes
+    processes_counter = Counter()
+    try:
+        for desktop_no, windows in monitors[monitor].items():
+            windows_counter = 0
+            for window in windows:
+                processes_counter[window.process] += 1
+                windows_counter += 1
+    except KeyError:
+        pass
+    return processes_counter
 
 
 # ############################################# #
@@ -154,6 +160,8 @@ def focus_window_number(window_no: int):
 
 def ordered_windows_for_monitor(monitor_no: int, limit=10) -> str:
     """ entry point for argument --monitor"""
+    if monitor_no not in monitors:
+        return "[]"
     icon_paths = {process: get_icon(process) for process in processes_set}
     processes_counter = count_unique_processes(monitor_no)
     preferences = load_preferences()
@@ -178,8 +186,7 @@ def ordered_windows_for_monitor(monitor_no: int, limit=10) -> str:
                 "first": n == 0,  # there is a different css style for the first window of a desktop
                 "last": n == len(windows) - 1,
             })
-    dump = json.dumps(windows_json)
-    return dump
+    return json.dumps(windows_json)
 
 
 def organize(mode="triple"):
