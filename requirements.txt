@@ -1,2 +1,3 @@
 py-applescript
 fuzzywuzzy
+python-Levenshtein

@@ -5,11 +5,12 @@ import json
 import math
 import subprocess
 from collections import Counter
-from typing import List, Dict, Union, Any
+from typing import List, Dict, Union, Any, Tuple, Optional
 
 from windows import Window, focus_desktop, get_sorted_windows_for_desktop, get_focused_window, get_number_of_monitors, \
-    get_focused_desktop, get_desktops_for_monitor, get_position_for_processes, destroy_desktop, create_new_desktop, \
-    focus_window_id, move_window, get_app_path
+    get_focused_desktop, get_desktops_for_monitor, destroy_desktop, create_new_desktop, \
+    focus_window_id, move_window, get_app_path, ask_for_permission_to_system_events, \
+    get_positions_for_process
 
 
 # ################################### #
@@ -71,10 +72,10 @@ for monitor_ in range(number_of_monitors, 0, -1):
     desktops_ = {}
     for desktop_ in get_desktops_for_monitor(monitor_):
         windows_ = []
-        for window_info_ in get_sorted_windows_for_desktop(desktop_):
-            processes_set.add(window_info_.process)
-            window_info_.no = number_of_windows
-            windows_.append(window_info_)
+        for window_ in get_sorted_windows_for_desktop(desktop_):
+            processes_set.add(window_.process)
+            window_.no = number_of_windows
+            windows_.append(window_)
             number_of_windows += 1
         desktops_[desktop_] = windows_
     monitors[monitor_] = desktops_
@@ -94,16 +95,62 @@ def load_preferences() -> Dict[str, Dict[str, Any]]:
         return json.load(f)
 
 
-def associate_positions_to_windows():
-    position_info = get_position_for_processes(list(processes_set))
-    for window in flat_window_list():
-        for w in position_info[window.process]:
-            if w[0] == window.title:
-                window.size = w[1]
+prev_positions: Optional[Dict[str, Dict[str, Any]]] = None
 
 
-# associate_positions_to_windows()
-# TODO: left window should be shown before right window
+# format: {
+#   "processes": {
+#     "Firefox": 324342.2342, "PyCharm": 2334234.23
+#   },
+#   "windows":   {
+#     "-9242342343": [423424243.24234,  [720, 0]]},
+#     "20493":       [2342424243.24234, [0, 430]]}
+#   }
+# }
+
+
+def get_position(process: str, title: str) -> Optional[Tuple[int, int]]:
+    global prev_positions
+    title = title.strip()
+    import time
+    if prev_positions is None:
+        print("")
+        try:
+            with open(".windows/positions.json") as f:
+                prev_positions = json.load(f)
+        except FileNotFoundError:
+            prev_positions = {"processes": {}, "windows": {}}
+
+    current_time = time.time()
+    windows = prev_positions["windows"]
+    processes = prev_positions["processes"]
+    if title in windows and current_time - windows[title][0] < 60:
+        return windows[title][1]
+
+    if process not in processes or current_time - processes[process] > 60:
+        # NOT return None  # asked to recently, will not go again
+
+        # will actually have to update for this key
+        found_windows = get_positions_for_process(process)
+        prev_positions["processes"][process] = current_time
+        if found_windows:
+            # the request did deliver results
+            for found_window_title, position in found_windows.items():
+                prev_positions["windows"][found_window_title.strip()] = [current_time, position]
+                # TODO: need a cleep-up of very old time stamps
+            with open("./windows/positions.json", "w+") as f:
+                json.dump(prev_positions, f)
+            if title in windows:
+                return windows[title][1]
+    highest_ratio = 0
+    highest_info: Optional[Tuple[int, int]] = None
+    from fuzzywuzzy import fuzz
+    for t, info in prev_positions["windows"].items():
+        ratio = fuzz.ratio(t, title)
+        if ratio > highest_ratio:
+            highest_info = info[1]
+            highest_ratio = ratio
+    return highest_info if highest_ratio > 0.5 else None
 
 
 def get_icon(process_name: str) -> str:
@@ -115,6 +162,9 @@ def get_icon(process_name: str) -> str:
 
     if os.path.exists(path):
         return path
+
+    if False:
+        ask_for_permission_to_system_events()
     app_path = get_app_path(process_name)
     try:
         process_path = f"{app_path}/Contents"
@@ -144,6 +194,27 @@ def count_unique_processes(monitor: int) -> Counter:
     except KeyError:
         pass
     return processes_counter
+
+
+# ############################################# #
+#   routine to rearrange windows by position    #
+# ############################################# #
+
+
+if True:
+    for windows_ in [ws_ for desktops__ in monitors.values()
+                     for ws_ in desktops__.values() if len(ws_) > 1]:  # only rearrange desktops with multiple windows
+        for window_ in windows_:
+            window_.position = get_position(window_.process, window_.title)
+        if any(w_.position is None for w_ in windows_):
+            continue  # some windows with invalid positions -> no rearrangement.
+
+        min_no: int = min([w_.no for w_ in windows_])
+        windows_.sort(key=lambda w_: w_.position[0])  # first sort for y component
+        windows_.sort(key=lambda w_: w_.position[1])  # then sort for x component
+
+        for w_, no in zip(windows_, range(min_no, min_no + len(windows_))):
+            w_.no = no
 
 
 # ############################################# #
@@ -185,6 +256,7 @@ def ordered_windows_for_monitor(monitor_no: int, limit=10) -> str:
                 "icon": icon_paths[window.process],
                 "first": n == 0,  # there is a different css style for the first window of a desktop
                 "last": n == len(windows) - 1,
+                "position": window.position,
             })
     return json.dumps(windows_json, indent=4, sort_keys=True)
 

@@ -58,6 +58,9 @@ is only displayed on the corresponding monitor (="display").
 When loading the first time, it will take a while as Neaty has 
 to automatically retrieve the icons of all the processes currently open. 
 But these are stored in the icons folder and can then directly be loaded. 
+Also you will be asked to grant the Übersicht.app
+permissions to `"System Events"`. This is needed so that that the 
+positions of the windows can be determined via AppleScript. 
 
 In the Übersicht "Preferences" you can also set an "Interaction Shortcut" 
 to the modifier key of your liking. Now it is possible to click on an icon

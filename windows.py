@@ -12,6 +12,7 @@ class Window:
         self.movable: Optional[bool] = None
         self.role: Optional[str] = None
         self.resizable: Optional[bool] = None
+        self.position: Optional[Tuple[int, int]] = None
 
     def calc_window_details(self):
         rows = subprocess.check_output([
@@ -119,6 +120,18 @@ def get_desktops_for_monitor(monitor: int) -> List[int]:
     ]
 
 
+def get_positions_for_process(process: str) -> Dict[str, List[int]]:
+    import json
+    result = subprocess.run(["sh", "./windows/window_position.sh", process], stdout=subprocess.PIPE).stdout
+    windows = {}
+    for line in result.decode('utf-8').split("\n"):
+        if line.strip() == "":
+            continue
+        pos, title = line.split(":@:")
+        windows[title.strip()] = json.loads(pos)
+    return windows
+
+
 def get_position_for_processes(processes: List[str]) -> Dict[str, List[Tuple[str, Tuple[float, float]]]]:
     import applescript
     script = 'tell application "System Events"\n\treturn {' + ", ".join([
@@ -134,23 +147,22 @@ def get_position_for_processes(processes: List[str]) -> Dict[str, List[Tuple[str
     return result
 
 
-def get_file_for_processes(processes: List[str]) -> Dict[str, str]:
-    import applescript
-    script = 'tell application "System Events"\n\treturn { ' + ", ".join([
-        f'file of application process "{process}"' for process in processes
-    ]) + ' }\nend tell'
-    return {process: path for process, path in zip(processes, applescript.AppleScript(script).run())}
+def ask_for_permission_to_system_events():
+    # TODO: not sure, if we really need to ask for permission, can be merged with position?
+    subprocess.check_output(["sh", "windows/window_position.sh"])
 
 
 def get_app_path(process: str) -> str:
-    import applescript
-    try:
-        script = f'''
-        tell application "System Events"
-            return file of application process "{process}"
-        end tell'''
-        app_path = applescript.AppleScript(script).run()
-    except applescript.ScriptError:
+    # TODO: should I use applescript here?
+    # import applescript
+    # try:
+    #     script = f'''
+    #     tell application "System Events"
+    #         return file of application process "{process}"
+    #     end tell'''
+    #     app_path = applescript.AppleScript(script).run()
+    # except applescript.ScriptError:
+    if True:
         print(f"Could not load appfile for {process}, will guess")
         from fuzzywuzzy import fuzz
         import os
