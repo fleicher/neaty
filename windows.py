@@ -130,8 +130,9 @@ def get_positions_for_process(process: str) -> Dict[str, List[int]]:
     for line in result.decode('utf-8').split("\n"):
         if line.strip() == "":
             continue
-        pos, title = line.split(":@:")
-        windows[title.strip()] = json.loads(pos)
+        items = line.split(":@:")
+        if len(items) > 1:  # sometimes there are output problems
+            windows[items[1].strip()] = json.loads(items[0])
     return windows
 
 
