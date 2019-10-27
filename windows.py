@@ -1,6 +1,9 @@
 from __future__ import print_function
+
+import json
 import subprocess
-from typing import List, Dict, Tuple, Optional
+import time
+from typing import List, Dict, Tuple, Optional, Any
 
 
 class Window:
@@ -147,23 +150,18 @@ def get_position_for_processes(processes: List[str]) -> Dict[str, List[Tuple[str
     return result
 
 
-def ask_for_permission_to_system_events():
-    # TODO: not sure, if we really need to ask for permission, can be merged with position?
-    subprocess.check_output(["sh", "windows/window_position.sh"])
-
-
 def get_app_path(process: str) -> str:
-    # TODO: should I use applescript here?
-    # import applescript
-    # try:
-    #     script = f'''
-    #     tell application "System Events"
-    #         return file of application process "{process}"
-    #     end tell'''
-    #     app_path = applescript.AppleScript(script).run()
-    # except applescript.ScriptError:
-    if True:
-        print(f"Could not load appfile for {process}, will guess")
+    import applescript
+    try:
+        script = f'''
+        tell application "System Events"
+            return file of application process "{process}"
+        end tell'''
+        app_path = applescript.AppleScript(script).run()
+    except applescript.ScriptError:
+        subprocess.check_output(["sh", "windows/window_position.sh"])  # asking for permission
+
+        # print(f"Could not load appfile for {process}, will guess")
         from fuzzywuzzy import fuzz
         import os
         best_ratio = 0
@@ -173,7 +171,7 @@ def get_app_path(process: str) -> str:
             if ratio > best_ratio:
                 best_ratio = ratio
                 app_path = f.path
-        print(f"guessing to be {app_path}")
+        # print(f"guessing to be {app_path}")
     return app_path
 
 
@@ -207,3 +205,84 @@ def get_sorted_windows_for_desktop(desktop: int, *, only_resizable=False) -> Lis
                 continue  # these are small fake windows that don't have to be addressed.
         windows.append(window)
     return sorted(windows, key=lambda wind: wind.id)
+
+
+prev_positions: Optional[Dict[str, Dict[str, Any]]] = None
+
+
+# format: {
+#   "processes": {
+#     "Firefox": 324342.2342, "PyCharm": 2334234.23
+#   },
+#   "windows":   {
+#     "-9242342343": [423424243.24234,  [720, 0]]},
+#     "20493":       [2342424243.24234, [0, 430]]}
+#   }
+# }
+
+
+def get_position(process: str, title: str) -> Optional[Tuple[int, int]]:
+    global prev_positions
+    title = title.strip()
+    if prev_positions is None:
+        try:
+            with open(".windows/positions.json") as f:
+                prev_positions = json.load(f)
+        except FileNotFoundError:
+            prev_positions = {"processes": {}, "windows": {}}
+
+    current_time = time.time()
+    windows = prev_positions["windows"]
+    processes = prev_positions["processes"]
+    if title in windows and current_time - windows[title][0] < 60:
+        return windows[title][1]
+
+    if process not in processes or current_time - processes[process] > 60:
+        # NOT return None  # asked to recently, will not go again
+
+        # will actually have to update for this key
+        found_windows = get_positions_for_process(process)
+        prev_positions["processes"][process] = current_time
+        if found_windows:
+            # the request did deliver results
+            for found_window_title, position in found_windows.items():
+                prev_positions["windows"][found_window_title.strip()] = [current_time, position]
+                # TODO: need a cleep-up of very old time stamps
+            with open("./windows/positions.json", "w+") as f:
+                json.dump(prev_positions, f)
+            if title in windows:
+                return windows[title][1]
+    highest_ratio = 0
+    highest_info: Optional[Tuple[int, int]] = None
+    from fuzzywuzzy import fuzz
+    for t, info in prev_positions["windows"].items():
+        ratio = fuzz.ratio(t, title)
+        if ratio > highest_ratio:
+            highest_info = info[1]
+            highest_ratio = ratio
+    return highest_info if highest_ratio > 0.5 else None
+
+
+def get_icon_path(process_name: str) -> str:
+    import plistlib
+    import os.path
+
+    path = f'./windows/icons/{process_name}.png'
+    if os.path.exists(path):
+        return path
+
+    app_path = get_app_path(process_name)
+    try:
+        process_path = f"{app_path}/Contents"
+        with open(process_path + "/Info.plist", "rb") as f:
+            icon_name = plistlib.load(f)["CFBundleIconFile"]
+            if icon_name[-5:] != ".icns":
+                icon_name += ".icns"
+        cmd = [
+            'sips', '-s', 'format', 'png', f"{process_path}/Resources/{icon_name}",
+            '--out', path, '--resampleHeight', '50'
+        ]
+        subprocess.run(cmd, stdout=subprocess.PIPE)
+        return path
+    except IOError:
+        return 'icons/unknown.png'
