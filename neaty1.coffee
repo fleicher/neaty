@@ -6,12 +6,14 @@ style: """
     bottom: -3px;
     padding: 0;
     border: 0 solid #222;
+    -webkit-user-select: none;
+    user-select: none;
 
-    div {
+
+    div.outer {
         background-image: url(windows/icons/gradient.png);
         width: 100%;
     }
-
 
     table {
         margin: 0 auto;
@@ -54,7 +56,7 @@ style: """
     }
 
     td.lastname {
-        border-right: 1px solid;
+        border-right: 1px solid gray;
     }
 
     img.icon {
@@ -62,8 +64,61 @@ style: """
         width: 38px;
         margin-left: auto;
         margin-right: auto;
-        margin-bottom: calc(-10px)
+        margin-bottom: calc(-10px);
     }
+
+    div.line {
+        position: relative;
+        height: 5px;
+        border-top: 1px solid gray;
+    }
+
+    div.line-right {
+        bottom: 10px;
+        left: 85px;
+    }
+
+    div.line-right-straight {
+        width: 58px;
+    }
+
+    div.line-right-angle {
+        width: 45px;
+        border-right: 1px solid gray;
+    }
+
+    div.line-left {
+        top: 24px;
+    }
+
+    div.line-left-angle {
+        right: 38px;
+        width: 75px;
+        border-left: 1px solid gray;
+    }
+
+    div.line-left-straight {
+        width: 38px;
+        left: 0px;
+    }
+
+    div.desktop {
+        position: relative;
+        right: 70px;
+        top: 33px;
+    }
+
+    div.desktop-hide {
+        display none;
+    }
+
+    div.desktop-show {
+        font-size: 14px;
+        font-family: SFNS Display, 'Andale Mono', sans-serif;
+        color: gray;
+    }
+
+
 """
 
 command: "/usr/local/bin/python3 ./windows/neaty.py --monitor 1"
@@ -72,7 +127,7 @@ refreshFrequency: 1000
 
 render: ->
   """
-    <div id='outer'>
+    <div class='outer'>
         <table id="table">
             <tr id="toprow"> </tr>
             <tr id="botrow"> </tr>
@@ -107,6 +162,7 @@ update: (output, domEl) ->
   botrow = $(domEl).find('#botrow')
 
   for i in [0 ... info.length]
+    w = info[i]
     if 2 * i >= toprow.children('td').length
       cell_number = $("<td rowspan='2' class='no' id='no#{i}'>")
       cell_icon = $("<td class='icon' id='icon#{i}'>")
@@ -120,22 +176,31 @@ update: (output, domEl) ->
       cell_name = $(domEl).find("#name#{i}")
 
 
-    if cell_name.attr("title") != info[i]["title"]
+    if cell_name.attr("title") != w["title"]
       console.log("update this monitor")
-      cell_name.attr("title", info[i]["title"])
-      cell_number.text(info[i]["no"] % 10)
-      cell_name.text(info[i]["short"])
-      cell_icon.html($("<img class='icon' src='#{info[i]["icon"]}' class='icon' id='img#{i}'>"))
+      cell_name.attr("title", w["title"])
+      cell_number.text(w["no"] % 10)
+      cell_name.text(w["short"])
+      cell_icon.append($("<div id='desktop-no#{i}'>"))
+      cell_icon.append($("<div id='line-left#{i}'>"))
+      cell_icon.append($("<img class='icon' src='#{w["icon"]}' id='img#{i}'>"))
+      cell_icon.append($("<div id='line-right#{i}'>"))
 
-    window_no = "window#{info[i]['no']}"
+    window_no = "window#{w['no']}"
     if !cell_number.attr("class").includes(window_no)
       console.log("update numbers (there was only a change on a different monitor")
-      cell_name.attr("class", "name #{window_no} #{'lastname' if info[i]['last'] && i != info.length - 1}")
+      cell_name.attr("class", "name #{window_no} #{'lastname' if w['last'] && i != info.length - 1}")
       cell_icon.attr("class", "icon #{window_no}")
-      cell_number.attr("class", "no #{window_no} #{'firstno' if info[i]['first']}")
-      cell_number.text(info[i]['no'] % 10)
+      cell_number.attr("class", "no #{window_no} #{'firstno' if w['first']}")
+      cell_number.text(w['no'] % 10)
       for o in [$(domEl).find("#img#{i}"), cell_number, cell_name, cell_icon]
-        o.on("click", calls[info[i]['no']])
+        o.on("click", calls[w['no']])
+      $(domEl).find("#line-left#{i}").attr("class",
+        "line line-left #{if w['first'] then 'line-left-angle' else 'line-left-straight'}")
+      $(domEl).find("#line-right#{i}").attr("class",
+        "line line-right #{if w['last'] then 'line-right-angle' else 'line-right-straight'}")
+      $(domEl).find("#desktop-no#{i}").text(w['desktop']).attr("class",
+        "desktop #{if w['first'] then 'desktop-hide' else 'desktop-show'}")
 
   for i in [info.length ... toprow.children('td').length]
     $(domEl).find("#no#{i}").remove()

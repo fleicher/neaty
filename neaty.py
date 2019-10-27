@@ -164,6 +164,7 @@ def ordered_windows_for_monitor(monitor_no: int, limit=10) -> str:
                 "short_title": short_title,
                 "title": window.title,
                 "no": window.no,
+                "desktop": desktop_no,
                 "id": window.id,
                 "focused_desktop": focused_desktop == desktop_no,
                 "icon": icon_paths[window.process],
