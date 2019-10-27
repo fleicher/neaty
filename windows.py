@@ -27,7 +27,7 @@ class Window:
         self.resizable = bool(int(output["resizable"]))
 
     def __repr__(self):
-        return f"{self.id} - {self.process} [{self.title[:20]}]"
+        return f"{self.process} [{self.title[:10]}] {self.position}"
 
 
 # ################################ #
@@ -136,21 +136,6 @@ def get_positions_for_process(process: str) -> Dict[str, List[int]]:
     return windows
 
 
-def get_position_for_processes(processes: List[str]) -> Dict[str, List[Tuple[str, Tuple[float, float]]]]:
-    import applescript
-    script = 'tell application "System Events"\n\treturn {' + ", ".join([
-        '({position, size, title} of every window of application process "' + process + '")'
-        for process in processes
-    ]) + '}\nend tell'
-    output = applescript.AppleScript(script).run()
-    result = {}
-    for process_name, (positions, sizes, titles) in zip(processes, output):
-        result[process_name] = [
-            (title, position) for position, size, title in zip(positions, sizes, titles)
-        ]
-    return result
-
-
 def get_app_path(process: str) -> str:
     import applescript
     try:
@@ -227,7 +212,7 @@ def get_position(process: str, title: str) -> Optional[Tuple[int, int]]:
     title = title.strip()
     if prev_positions is None:
         try:
-            with open(".windows/positions.json") as f:
+            with open("./windows/positions.json") as f:
                 prev_positions = json.load(f)
         except FileNotFoundError:
             prev_positions = {"processes": {}, "windows": {}}
@@ -239,18 +224,19 @@ def get_position(process: str, title: str) -> Optional[Tuple[int, int]]:
         return windows[title][1]
 
     if process not in processes or current_time - processes[process] > 60:
-        # NOT return None  # asked to recently, will not go again
-
-        # will actually have to update for this key
-        found_windows = get_positions_for_process(process)
+        # will only query this process again if it wasn't for quite a while
         prev_positions["processes"][process] = current_time
-        if found_windows:
+        windows_found = get_positions_for_process(process)
+        if len(windows_found) > 0:
             # the request did deliver results
-            for found_window_title, position in found_windows.items():
+            for found_window_title, position in windows_found.items():
+                assert position is not None
                 prev_positions["windows"][found_window_title.strip()] = [current_time, position]
                 # TODO: need a cleep-up of very old time stamps
             with open("./windows/positions.json", "w+") as f:
-                json.dump(prev_positions, f)
+                json.dump(prev_positions, f, indent=4, sort_keys=True)
+                f.flush()
+
             if title in windows:
                 return windows[title][1]
     highest_ratio = 0

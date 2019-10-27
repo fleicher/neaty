@@ -121,8 +121,8 @@ for windows_ in [ws_ for desktops__ in monitors.values()
         continue  # some windows with invalid positions -> no rearrangement.
 
     min_no: int = min([w_.no for w_ in windows_])
-    windows_.sort(key=lambda w_: w_.position[0])  # first sort for y component
-    windows_.sort(key=lambda w_: w_.position[1])  # then sort for x component
+    windows_.sort(key=lambda w_: w_.position[1])  # first sort for y component
+    windows_.sort(key=lambda w_: w_.position[0])  # then sort for x component
 
     for w_, no in zip(windows_, range(min_no, min_no + len(windows_))):
         w_.no = no
